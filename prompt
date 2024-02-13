@@ -1,0 +1,61 @@
+#!/bin/bash
+
+# USAGE
+#
+# If you have to run the same program over and over with the last few arguments
+# always changing, you can use this command like this:
+#
+# prompt myprog --arg1 -arg2 arg3 "this is arg 4"
+#
+# A prompt will show up which you can exit using Ctrl-D.
+#
+# You can add multiple arguments per each prompt line. Remember to encase
+# arguments that contain spaces using 'quotes' or "double quotes".
+#
+# Lines entered into the prompt will be stored into a history name derived from
+# the supplied command complete with its arguments, and ending with the
+# .history file extension. Lines that result in errors (non-zero exit codes)
+# from the command will also be added to a file named the same, but which ends
+# in .errors instead of ending in .history.
+#
+# Please set the disallowed variable depending on whether you're on Linux,
+# Windows, or some other operating system.
+
+
+# Set characters not allowed within a file name on your platform. If you want
+# to use a backslash (\), make sure to escape it (\\), because it'll be used by
+# the tr command, which needs the backslash escaped.
+disallowed='<>:"/\\|?' # for Windows.
+if [[ "$(uname -s)" == "Linux" ]]; then
+  disallowed='/' # for Linux
+  fi
+# If you're on another platform, set the variable here:
+# disallowed='/'
+
+# The file name will have disallowed characters replaced with underscores and
+# will end in .history. Prompt lines that result in an error will also be added
+# to a file that is named the same, but ends in .errors instead of .history.
+this_histfile_base="$(printf '%s' "$*" | tr "$disallowed" _)"
+this_histfile="$this_histfile_base"".history"
+this_errorfile="$this_histfile_base"".errors"
+
+# Note: Starting bash 5.3, you will be able to do read -E, which is like
+# read -e, but has history. However, bash 5.3 has not been released yet.
+while IFS= read -e -p "$*> " line; do
+
+  if [ -z "$line" ]; then
+    continue
+    fi
+
+  if ! [[ "${line:0:1}" == " " ]]; then # do not log lines that start with a space
+    printf '%s\n' "$line" >> "$this_histfile"
+    fi
+
+  "$@" $line # note: the variable line will be expanded (so you can enter multiple arguments).
+  if [ "$?" -gt 0 ]; then
+    printf '%s\n' "$line" >> "$this_errorfile"
+    fi
+
+  printf '\n'
+
+  done

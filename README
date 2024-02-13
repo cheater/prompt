@@ -1,0 +1,20 @@
+USAGE
+
+If you have to run the same program over and over with the last few arguments
+always changing, you can use this command like this:
+
+prompt myprog --arg1 -arg2 arg3 "this is arg 4"
+
+A prompt will show up which you can exit using Ctrl-D.
+
+You can add multiple arguments per each prompt line. Remember to encase
+arguments that contain spaces using 'quotes' or "double quotes".
+
+Lines entered into the prompt will be stored into a history name derived from
+the supplied command complete with its arguments, and ending with the
+.history file extension. Lines that result in errors (non-zero exit codes)
+from the command will also be added to a file named the same, but which ends
+in .errors instead of ending in .history.
+
+Please set the disallowed variable depending on whether you're on Linux,
+Windows, or some other operating system.
