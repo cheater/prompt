@@ -9,8 +9,9 @@
 #
 # A prompt will show up which you can exit using Ctrl-D.
 #
-# You can add multiple arguments per each prompt line. Remember to encase
-# arguments that contain spaces using 'quotes' or "double quotes".
+# You can add multiple arguments per each prompt line. Spaces always separate
+# arguments and there is currently no way to escape spaces or use quotation
+# marks.
 #
 # Lines entered into the prompt will be stored into a history name derived from
 # the supplied command complete with its arguments, and ending with the
@@ -18,6 +19,21 @@
 # from the command will also be added to a file named the same, but which ends
 # in .errors instead of ending in .history. The .errors file logs all errors,
 # even for prompts that start with a space.
+#
+# You can call the program multiple times with one prompt line by using the
+# semicolon (;). For example, this prompt:
+#
+# myprog -a> foo; bar
+#
+# will invoke myprog -a foo, then myprog -a bar, and then log "foo; bar" into
+# the .history file. If either invokation of myprog returns an error, the whole
+# prompt "foo; bar" will be logged to the .errors file. It does not matter that
+# the part that contained "bar" starts with a space (located right after the
+# semicolon). Whether or not a line gets logged to .history only depends on
+# whether the whole prompt starts with a space.
+#
+# If you wish to use a literal semicolon, you have to escape it using a
+# backslash, like so: foo\; bar.
 #
 # Please set the disallowed variable depending on whether you're on Linux,
 # Windows, or some other operating system.
@@ -40,9 +56,19 @@ this_histfile_base="$(printf '%s' "$*" | tr "$disallowed" _)"
 this_histfile="$this_histfile_base"".history"
 this_errorfile="$this_histfile_base"".errors"
 
+# Usage: join joinchar [arg ...]
+join() {
+  local IFS="$1"
+  shift
+  printf '%s\n' "$*"
+  }
+
 # Note: Starting bash 5.3, you will be able to do read -E, which is like
 # read -e, but has history. However, bash 5.3 has not been released yet.
-while IFS= read -e -p "$*> " line; do
+while IFS=';' read -a linearr -e -p "$*> "; do
+
+  line="$(join ";" "${linearr[@]}")"
+  # echo "line: $line"
 
   if [ -z "$line" ]; then
     continue
@@ -52,11 +78,22 @@ while IFS= read -e -p "$*> " line; do
     printf '%s\n' "$line" >> "$this_histfile"
     fi
 
-  "$@" $line # note: the variable line will be expanded (so you can enter multiple arguments).
-  if [ "$?" -gt 0 ]; then
+  error=0
+  for subline in "${linearr[@]}"; do
+    # echo "subline: $subline"
+
+
+    "$@" $subline # note: the variable line will be expanded (so you can enter multiple arguments).
+    if [ "$?" -gt 0 ]; then
+      error=1
+      fi
+
+    printf '\n'
+    done
+
+  # Log prompts that cause errors
+  if [ "$error" -gt 0 ]; then
     printf '%s\n' "$line" >> "$this_errorfile"
     fi
-
-  printf '\n'
 
   done
