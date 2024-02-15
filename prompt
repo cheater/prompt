@@ -16,7 +16,8 @@
 # the supplied command complete with its arguments, and ending with the
 # .history file extension. Lines that result in errors (non-zero exit codes)
 # from the command will also be added to a file named the same, but which ends
-# in .errors instead of ending in .history.
+# in .errors instead of ending in .history. The .errors file logs all errors,
+# even for prompts that start with a space.
 #
 # Please set the disallowed variable depending on whether you're on Linux,
 # Windows, or some other operating system.
