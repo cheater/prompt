@@ -63,6 +63,75 @@ join() {
   printf '%s\n' "$*"
   }
 
+# The parser: split on separator but not within quotes or when escaped.
+#
+# The escape character is \, the separator is ;.
+#
+# States:
+#
+# normal
+# comment (starts with # and goes on until separator (;) or EOL)
+# after-separator (for skipping whitespace after ;)
+# single-quoted (with ')
+# double-quoted (with ")
+# escape-on-first-character (for commands)
+# escape-normal
+# escape-single-quoted
+# escape-double-quoted
+#
+# Allowed actions within states - transitions are not mentioned, they're
+# documented further below - here we only mention actions that don't change the
+# current state:
+#
+# normal:
+# - encounter a normal character and add it to current entry in the args array
+#   being built (the args array is the accumulator for the parser)
+# - finish current entry in args array and start a new, empty one
+# - encounter a separator, run a command, and then start a new args array
+# - encounter an escaped character (and add it to args array)
+#
+# comment:
+# - encounter any non-separator character and skip it
+#
+# single-quoted:
+# - encounter an escaped character
+#
+# double-quoted:
+# - encounter an escaped character
+#
+# after-separator:
+# - encounter a whitespace character and skip it
+#
+#
+#
+# Allowed state transitions:
+#
+# Trigger                         Transition
+#
+# #                               normal -> comment
+# ;                               normal -> after-separator
+# \                               normal -> escape-on-first-character
+# \                               normal -> escape-normal
+# '                               normal -> single-quoted
+# "                               normal -> double-quoted
+# ;                               comment -> after-separator
+# '                               comment -> single-quoted
+# "                               comment -> double-quoted
+# \                               comment -> escape-comment
+# #                               after-separator -> comment
+# ;                               after-separator -> after-separator
+# \                               after-separator -> escape-on-first-character
+# '                               after-separator -> singe-quoted
+# "                               after-separator -> double-quoted
+# any other non-whitespace        after-separator -> normal
+# \                               single-quoted -> escape-single-quoted
+# '                               single-quoted -> normal/comment (depending on continuation)
+# \                               double-quoted -> escape-double-quoted
+# "                               double-quoted -> normal/comment (depending on continuation)
+# any                             escape-normal -> normal
+# any                             escape-comment -> comment
+# any                             escape-single-quoted -> single-quoted
+# any                             escape-double-quoted -> double-quoted
 # Note: Starting bash 5.3, you will be able to do read -E, which is like
 # read -e, but has history. However, bash 5.3 has not been released yet.
 while IFS=';' read -a linearr -e -p "$*> "; do
