@@ -10,8 +10,7 @@
 # A prompt will show up which you can exit using Ctrl-D.
 #
 # You can add multiple arguments per each prompt line. Spaces always separate
-# arguments and there is currently no way to escape spaces or use quotation
-# marks.
+# arguments unless you surround them by single or double quotes.
 #
 # Lines entered into the prompt will be stored into a history name derived from
 # the supplied command complete with its arguments, and ending with the
@@ -34,6 +33,12 @@
 #
 # If you wish to use a literal semicolon, you have to escape it using a
 # backslash, like so: foo\; bar.
+#
+# Semicolons are not observed within quotes (both single and double quotes).
+#
+# You can start comments with # and they will continue either until the end of
+# line or until the next semicolon which is not escaped with a backslash and
+# not within quotes.
 #
 # Please set the disallowed variable depending on whether you're on Linux,
 # Windows, or some other operating system.
