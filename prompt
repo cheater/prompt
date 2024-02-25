@@ -572,7 +572,7 @@ parser() {
         exit 128
 
       esac
-    done # We've finished parsing the whole line
+    done # We've finished parsing the whole line and have reached EOL/EOF
 
     args+=("$current_arg")
     current_arg=""
