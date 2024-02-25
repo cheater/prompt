@@ -56,6 +56,8 @@ this_histfile_base="$(printf '%s' "$*" | tr "$disallowed" _)"
 this_histfile="$this_histfile_base"".history"
 this_errorfile="$this_histfile_base"".errors"
 
+
+# Helper function. I think this one isn't being used any more.
 # Usage: join joinchar [arg ...]
 join() {
   local IFS="$1"
