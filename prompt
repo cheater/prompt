@@ -58,6 +58,11 @@ this_histfile="$this_histfile_base"".history"
 this_errorfile="$this_histfile_base"".errors"
 
 
+# Is debugging turned on? This will print some additional testing information.
+# Set to 1 to turn on, set to 0 to turn off.
+dbg=0
+
+
 # Save the args passed to this program in a new array that is globally
 # accessible, also from within functions, as $@ is used not only for holding
 # the arguments to the program but it also holds the arguments to a function:
@@ -181,15 +186,16 @@ parser() {
 
   for ((i = 0; i < line_len; i++)); do
     char="${line:i:1}"
-    # echo "Character at position $i: $char"
-    echo "------"
-    echo "i: $i"
-    echo "char: $char"
-    echo "state: $state"
-    echo "continuation: $continuation"
-    echo "current_arg: $current_arg"
-    echo "quoted_str: $quoted_str"
-    echo "args: ${args[@]}"
+    if [ "$dbg" -gt 0 ]; then
+      echo "------"
+      echo "i: $i"
+      echo "char: $char"
+      echo "state: $state"
+      echo "continuation: $continuation"
+      echo "current_arg: $current_arg"
+      echo "quoted_str: $quoted_str"
+      echo "args: ${args[@]}"
+      fi
 
 
     case "$state" in
@@ -221,7 +227,7 @@ parser() {
               current_arg=""
               fi
 
-            echo "about to execute 1" # dbg
+            [ "$dbg" -gt 0 ] && echo "about to execute 1"
             # Execute the command
             if [ ${#args[@]} -gt 0 ]; then # if the args array is non-empty
               "${prompt_args[@]}" "${args[@]}"
@@ -281,7 +287,7 @@ parser() {
             # current args, empty the accumulator, and continue parsing the
             # next subline.
 
-            echo "about to execute 2" # dbg
+            [ "$dbg" -gt 0 ] && echo "about to execute 2"
             # Execute the command
             if [ ${#args[@]} -gt 0 ]; then # if the args array is non-empty
               "${prompt_args[@]}" "${args[@]}"
@@ -550,7 +556,7 @@ parser() {
 
     args+=("$current_arg")
     current_arg=""
-    echo "about to execute 3" # dbg
+    [ "$dbg" -gt 0 ] && echo "about to execute 3"
     # Execute the command
     if [ ${#args[@]} -gt 0 ]; then # if the args array is non-empty
       "${prompt_args[@]}" "${args[@]}"
