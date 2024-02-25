@@ -559,9 +559,9 @@ parser() {
 
 # Note: Starting bash 5.3, you will be able to do read -E, which is like
 # read -e, but has history. However, bash 5.3 has not been released yet.
-while IFS=';' read -a linearr -e -p "$*> "; do
+while IFS=';' read -r -e -p "$*> " line; do
 
-  line="$(join ";" "${linearr[@]}")"
+  # line="$(join ";" "${linearr[@]}")"
   # echo "line: $line"
 
   if [ -z "$line" ]; then
@@ -573,17 +573,8 @@ while IFS=';' read -a linearr -e -p "$*> "; do
     fi
 
   error=0
-  for subline in "${linearr[@]}"; do
-    # echo "subline: $subline"
 
-
-    "$@" $subline # note: the variable line will be expanded (so you can enter multiple arguments).
-    if [ "$?" -gt 0 ]; then
-      error=1
-      fi
-
-    printf '\n'
-    done
+  parser "$line"
 
   # Log prompts that cause errors
   if [ "$error" -gt 0 ]; then
