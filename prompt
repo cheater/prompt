@@ -212,9 +212,14 @@ parser() {
             ;;
 
           ';') # -> after-separator
-            # We've found a separator in normal mode; run the command with the
-            # current args, empty the accumulator, and continue parsing the
-            # next subline.
+            # We've found a separator in normal mode; finish off the current
+            # argument, run the command with the current args, empty the
+            # accumulator, and continue parsing the next subline.
+
+            if [ -n "$current_arg" ]; then # if $current_arg is not an empty string
+              args+=("$current_arg")
+              current_arg=""
+              fi
 
             echo "about to execute 1" # dbg
             # Execute the command
