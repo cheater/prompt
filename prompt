@@ -49,12 +49,24 @@ if [[ "$(uname -s)" == "Linux" ]]; then
 # If you're on another platform, set the variable here:
 # disallowed='/'
 
+
 # The file name will have disallowed characters replaced with underscores and
 # will end in .history. Prompt lines that result in an error will also be added
 # to a file that is named the same, but ends in .errors instead of .history.
 this_histfile_base="$(printf '%s' "$*" | tr "$disallowed" _)"
 this_histfile="$this_histfile_base"".history"
 this_errorfile="$this_histfile_base"".errors"
+
+
+# Save the args passed to this program in a new array that is globally
+# accessible, also from within functions, as $@ is used not only for holding
+# the arguments to the program but it also holds the arguments to a function:
+declare -a prompt_args=("$@")
+
+
+# This variable holds the information about whether the last command line has
+# spawned a command that returned with an error (return value > 0)
+error=0
 
 
 # Helper function. I think this one isn't being used any more.
@@ -64,6 +76,7 @@ join() {
   shift
   printf '%s\n' "$*"
   }
+
 
 # The command line parser: split on separator but not within quotes or when
 # escaped; allow comments that end on separator.
@@ -151,6 +164,399 @@ join() {
 #
 # (at end of input)          EOL - note this is not represented within the
 #                              state loop, it's performed after the loop.
+
+separator=';'
+
+parser() {
+  local line="$1"
+  line_len=${#line}
+  state="normal"
+  declare -a args=()
+  current_arg=""
+  quoted_str=""
+  continuation=""
+
+
+  # Iterate over every character of the input line
+
+  for ((i = 0; i < line_len; i++)); do
+    char="${line:i:1}"
+    # echo "Character at position $i: $char"
+    echo "------"
+    echo "i: $i"
+    echo "char: $char"
+    echo "state: $state"
+    echo "continuation: $continuation"
+    echo "current_arg: $current_arg"
+    echo "quoted_str: $quoted_str"
+    echo "args: ${args[@]}"
+
+
+    case "$state" in
+
+
+      normal)
+
+        case "$char" in
+
+          '#') # -> comment
+            # We've encountered the start of a comment. Finish the current
+            # argument in the argument list (accumulator) and switch to comment
+            # state.
+
+            if [ -n "$current_arg" ]; then # if $current_arg is not an empty string
+              args+=("$current_arg")
+              current_arg=""
+              fi
+            state="comment"
+            ;;
+
+          ';') # -> after-separator
+            # We've found a separator in normal mode; run the command with the
+            # current args, empty the accumulator, and continue parsing the
+            # next subline.
+
+            echo "about to execute 1" # dbg
+            # Execute the command
+            if [ ${#args[@]} -gt 0 ]; then # if the args array is non-empty
+              "${prompt_args[@]}" "${args[@]}"
+              if [ "$?" -gt 0 ]; then
+                error=1
+                fi
+              printf '\n'
+              fi
+
+            args=()
+            state="after-separator"
+            ;;
+
+          '\') # -> escape-normal
+            # We've found an escape character. The next character will not
+            # change modes.
+            state="escape-normal"
+            ;;
+
+          "'") # -> single-quoted
+            # We've found a single quote
+            continuation="normal"
+            state="single-quoted"
+            ;;
+
+          '"') # -> double-quoted
+            # We've found a double quote
+            continuation="normal"
+            state="double-quoted"
+            ;;
+
+          ' ')
+            # We've encountered a space. Finish the current arg and start a new
+            # one.
+
+            if [ -n "$current_arg" ]; then # if $current_arg is not an empty string
+              args+=("$current_arg")
+              current_arg=""
+              fi
+            ;;
+
+          *)
+            # Any other normal char - just add it to the end of the
+            # accumulator.
+            current_arg="$current_arg""$char"
+
+          esac
+        ;;
+
+
+      comment)
+
+        case "$char" in
+
+          ';') # -> after-separator
+            # We've found a separator in comment mode; run the command with the
+            # current args, empty the accumulator, and continue parsing the
+            # next subline.
+
+            echo "about to execute 2" # dbg
+            # Execute the command
+            if [ ${#args[@]} -gt 0 ]; then # if the args array is non-empty
+              "${prompt_args[@]}" "${args[@]}"
+              if [ "$?" -gt 0 ]; then
+                error=1
+                fi
+              printf '\n'
+              fi
+
+            args=()
+            state="after-separator"
+            ;;
+
+          '\') # -> escape-comment
+            # We've found an escape character. The next character will not
+            # change modes.
+            state="escape-comment"
+            ;;
+
+          "'") # -> single-quoted
+            # We've found a single quote
+            continuation="comment"
+            state="single-quoted"
+            ;;
+
+          '"') # -> double-quoted
+            # We've found a double quote
+            continuation="comment"
+            state="double-quoted"
+            ;;
+
+          *)
+            # Do nothing, just continue parsing.
+
+          esac
+        ;;
+
+
+      after-separator)
+
+        case "$char" in
+
+          ' ')
+            # We're skipping leading whitespace of a sub-line after the
+            # separator (;) has been parsed.
+
+            # Do nothing, just continue parsing.
+            ;;
+
+          '#') # -> comment
+            current_arg=""
+            state="comment"
+            ;;
+
+          ';') # -> after-separator
+            # We've encountered another separator.
+
+            # Do nothing, just continue parsing.
+            ;;
+
+          "'") # -> single-quoted
+            # We've found a single quote
+            continuation="normal"
+            state="single-quoted"
+            ;;
+
+          '"') # -> double-quoted
+            # We've found a double quote
+            continuation="normal"
+            state="double-quoted"
+            ;;
+
+          *) # -> normal
+            # We've found a non-space, non-special character. Change to normal
+            # state and start building an argument for the args array.
+            state="normal"
+            current_arg="$char" # Note there may not be any other input into
+                                # the argument before the first normal
+                                # character that's after a separator.
+
+          esac
+        ;;
+
+
+      single-quoted)
+
+        # We're in single-quoted mode. We don't recognize the separator, only
+        # quotes and escaped quotes
+
+        case "$char" in
+
+          '\') # -> escape-single-quoted
+            state="escape-single-quoted"
+            ;;
+
+          "'") # -> normal / comment (depending on continuation)
+            # We've found a single quote
+            case "$continuation" in
+              normal)
+                continuation=""
+                current_arg="$current_arg""$quoted_str"
+                quoted_str=""
+                state="normal"
+                ;;
+              comment)
+                continuation=""
+                quoted_str=""
+                state="comment"
+                ;;
+              *)
+                echo "Erroneous continuation at end of single-quoted string: $continuation; exiting." >&2
+                exit 128
+              esac
+            ;;
+
+          *)
+            # Any other normal char - just add it to the end of the
+            # accumulator.
+            quoted_str="$quoted_str""$char"
+
+          esac
+        ;;
+
+
+      double-quoted)
+
+        # We're in double-quoted mode. We don't recognize the separator, only
+        # quotes and escaped quotes
+
+        case "$char" in
+
+          '\') # -> escape-double-quoted
+            state="escape-double-quoted"
+            ;;
+
+          '"') # -> normal / comment (depending on continuation)
+            # We've found a double quote
+            case "$continuation" in
+              normal)
+                continuation=""
+                current_arg="$current_arg""$quoted_str"
+                quoted_str=""
+                state="normal"
+                ;;
+              comment)
+                continuation=""
+                quoted_str=""
+                state="comment"
+                ;;
+              *)
+                echo "Erroneous continuation at end of double-quoted string: $continuation; exiting." >&2
+                exit 128
+              esac
+            ;;
+
+          *)
+            # Any other normal char - just add it to the end of the
+            # accumulator.
+            quoted_str="$quoted_str""$char"
+
+          esac
+        ;;
+
+
+      escape-normal)
+
+        case "$char" in
+
+          '#'|';'|'\'|"'"|'"') # -> normal
+            current_arg="$current_arg""$char"
+            state="normal"
+            ;;
+
+          *) # -> normal
+            # Failed escape - the escape character wasn't followed by an
+            # escapable character, so treat them both literally.
+            current_arg="$current_arg"'\'"$char"
+            state="normal"
+
+          esac
+        ;;
+
+
+      escape-comment)
+
+        # We're in comment mode, and  the last char was an escape character.
+
+        case "$char" in
+
+          # We don't need to special case on escapable characters and
+          # non-escapable characters since it doens't matter - in either case,
+          # the characters aren't making it into any sort of string we're
+          # building up:
+          #
+          # '#'|';'|'\'|"'"|'"') # -> comment
+          #   # Do nothing, just go back to the comment state.
+          #   state="comment"
+          #   ;;
+
+          *) # -> comment
+            # Do nothing, just go back to the comment state.
+
+            # In fact, we don't even need this case block, but we just included
+            # it so it loks the same as all the other code around it.
+            state="comment"
+
+          esac
+        ;;
+
+
+      escape-single-quoted)
+
+        # We're in single-quoted mode, and the last char was an escape
+        # character (the backslash \).
+
+        case "$char" in
+
+          "'") # -> single-quoted
+            # We've found an escaped single quote - add it to the end of the
+            # accumulator.
+            quoted_str="$quoted_str""$char"
+            state="single-quoted"
+            ;;
+
+          *) # -> single-quoted
+            # Failed escape - the escape character wasn't followed by an
+            # escapable character, so treat them both literally.
+            quoted_str="$quoted_str"'\'"$char"
+            state="single-quoted"
+
+          esac
+        ;;
+
+
+      escape-double-quoted)
+
+        # We're in double-quoted mode, and the last char was an escape
+        # character (the backslash \).
+
+        case "$char" in
+
+          '"') # -> double-quoted
+            # We've found an escaped double quote - add it to the end of the
+            # accumulator.
+            quoted_str="$quoted_str""$char"
+            state="double-quoted"
+            ;;
+
+          *) # -> double-quoted
+            # Failed escape - the escape character wasn't followed by an
+            # escapable character, so treat them both literally.
+            quoted_str="$quoted_str"'\'"$char"
+            state="double-quoted"
+
+          esac
+        ;;
+
+
+      *)
+
+        echo "Erroneous Stage 1 Parser state: $state; exiting." >&2
+        exit 128
+
+      esac
+    done # We've finished parsing the whole line
+
+    args+=("$current_arg")
+    current_arg=""
+    echo "about to execute 3" # dbg
+    # Execute the command
+    if [ ${#args[@]} -gt 0 ]; then # if the args array is non-empty
+      "${prompt_args[@]}" "${args[@]}"
+      if [ "$?" -gt 0 ]; then
+        error=1
+        fi
+      printf '\n'
+      fi
+    args=()
+  }
+
 # Note: Starting bash 5.3, you will be able to do read -E, which is like
 # read -e, but has history. However, bash 5.3 has not been released yet.
 while IFS=';' read -a linearr -e -p "$*> "; do
