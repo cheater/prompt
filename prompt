@@ -104,6 +104,7 @@ join() {
 # double-quoted (with ")
 # escape-on-first-character (for commands)
 # escape-normal
+# escape-comment
 # escape-single-quoted
 # escape-double-quoted
 #
@@ -132,6 +133,20 @@ join() {
 # double-quoted:
 # - encounter any character, space or non-space, and add it to the current
 #   argument being built
+#
+# escape-normal:
+# - encounter one character, and add it to the current argument
+#
+# escape-comment:
+# - encounter any character, and ignore it
+#
+# escape-single-quoted:
+# - encounter one character, and add it to the current quoted string
+#   accumulator
+#
+# escape-double-quoted:
+# - encounter one character, and add it to the current quoted string
+#   accumulator
 #
 #
 #
