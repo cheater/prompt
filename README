@@ -7,14 +7,36 @@ prompt myprog --arg1 -arg2 arg3 "this is arg 4"
 
 A prompt will show up which you can exit using Ctrl-D.
 
-You can add multiple arguments per each prompt line. Remember to encase
-arguments that contain spaces using 'quotes' or "double quotes".
+You can add multiple arguments per each prompt line. Spaces always separate
+arguments unless you surround them by single or double quotes.
 
 Lines entered into the prompt will be stored into a history name derived from
 the supplied command complete with its arguments, and ending with the
 .history file extension. Lines that result in errors (non-zero exit codes)
 from the command will also be added to a file named the same, but which ends
-in .errors instead of ending in .history.
+in .errors instead of ending in .history. The .errors file logs all errors,
+even for prompts that start with a space.
+
+You can call the program multiple times with one prompt line by using the
+semicolon (;). For example, this prompt:
+
+myprog -a> foo; bar
+
+will invoke myprog -a foo, then myprog -a bar, and then log "foo; bar" into
+the .history file. If either invokation of myprog returns an error, the whole
+prompt "foo; bar" will be logged to the .errors file. It does not matter that
+the part that contained "bar" starts with a space (located right after the
+semicolon). Whether or not a line gets logged to .history only depends on
+whether the whole prompt starts with a space.
+
+If you wish to use a literal semicolon, you have to escape it using a
+backslash, like so: foo\; bar.
+
+Semicolons are not observed within quotes (both single and double quotes).
+
+You can start comments with # and they will continue either until the end of
+line or until the next semicolon which is not escaped with a backslash and
+not within quotes.
 
 Please set the disallowed variable depending on whether you're on Linux,
 Windows, or some other operating system.
