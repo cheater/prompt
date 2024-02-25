@@ -574,8 +574,10 @@ parser() {
       esac
     done # We've finished parsing the whole line and have reached EOL/EOF
 
-    args+=("$current_arg")
-    current_arg=""
+    if [ -n "$current_arg" ]; then # if $current_arg is not an empty string
+      args+=("$current_arg")
+      current_arg=""
+      fi
     [ "$dbg" -gt 0 ] && echo "about to execute 3"
     # Execute the command
     if [ ${#args[@]} -gt 0 ]; then # if the args array is non-empty
