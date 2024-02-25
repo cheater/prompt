@@ -63,9 +63,12 @@ join() {
   printf '%s\n' "$*"
   }
 
-# The parser: split on separator but not within quotes or when escaped.
+# The command line parser: split on separator but not within quotes or when
+# escaped; allow comments that end on separator.
 #
 # The escape character is \, the separator is ;.
+#
+#
 #
 # States:
 #
@@ -79,59 +82,73 @@ join() {
 # escape-single-quoted
 # escape-double-quoted
 #
+#
+#
 # Allowed actions within states - transitions are not mentioned, they're
 # documented further below - here we only mention actions that don't change the
 # current state:
 #
 # normal:
-# - encounter a normal character and add it to current entry in the args array
-#   being built (the args array is the accumulator for the parser)
-# - finish current entry in args array and start a new, empty one
-# - encounter a separator, run a command, and then start a new args array
-# - encounter an escaped character (and add it to args array)
+# - encounter a normal non-space character and add it to current entry in the
+#   args array being built (the args array is the accumulator for the parser)
+# - encounter a space and finish current entry in args array and start a new,
+#   empty one
 #
 # comment:
-# - encounter any non-separator character and skip it
-#
-# single-quoted:
-# - encounter an escaped character
-#
-# double-quoted:
-# - encounter an escaped character
+# - encounter any non-special character and skip it
 #
 # after-separator:
 # - encounter a whitespace character and skip it
+#
+# single-quoted:
+# - encounter any character, space or non-space, and add it to the current
+#   argument being built
+#
+# double-quoted:
+# - encounter any character, space or non-space, and add it to the current
+#   argument being built
 #
 #
 #
 # Allowed state transitions:
 #
-# Trigger                         Transition
+# Trigger                    Transition
 #
-# #                               normal -> comment
-# ;                               normal -> after-separator
-# \                               normal -> escape-on-first-character
-# \                               normal -> escape-normal
-# '                               normal -> single-quoted
-# "                               normal -> double-quoted
-# ;                               comment -> after-separator
-# '                               comment -> single-quoted
-# "                               comment -> double-quoted
-# \                               comment -> escape-comment
-# #                               after-separator -> comment
-# ;                               after-separator -> after-separator
-# \                               after-separator -> escape-on-first-character
-# '                               after-separator -> singe-quoted
-# "                               after-separator -> double-quoted
-# any other non-whitespace        after-separator -> normal
-# \                               single-quoted -> escape-single-quoted
-# '                               single-quoted -> normal/comment (depending on continuation)
-# \                               double-quoted -> escape-double-quoted
-# "                               double-quoted -> normal/comment (depending on continuation)
-# any                             escape-normal -> normal
-# any                             escape-comment -> comment
-# any                             escape-single-quoted -> single-quoted
-# any                             escape-double-quoted -> double-quoted
+# #                          normal -> comment
+# ;                          normal -> after-separator
+# \                          normal -> escape-on-first-character
+# \                          normal -> escape-normal
+# '                          normal -> single-quoted (set continuation to "normal")
+# "                          normal -> double-quoted (set continuation to "normal")
+#
+# ;                          comment -> after-separator
+# \                          comment -> escape-comment
+# '                          comment -> single-quoted (set continuation to "comment")
+# "                          comment -> double-quoted (set continuation to "comment")
+#
+# #                          after-separator -> comment
+# ;                          after-separator -> after-separator
+# \                          after-separator -> escape-on-first-character
+# '                          after-separator -> singe-quoted (set continuation to "normal")
+# "                          after-separator -> double-quoted (set continuation to "normal")
+# any other non-whitespace   after-separator -> normal
+#
+# \                          single-quoted -> escape-single-quoted
+# '                          single-quoted -> normal/comment (depending on continuation)
+#
+# \                          double-quoted -> escape-double-quoted
+# "                          double-quoted -> normal/comment (depending on continuation)
+#
+# any                        escape-normal -> normal
+#
+# any                        escape-comment -> comment
+#
+# any                        escape-single-quoted -> single-quoted
+#
+# any                        escape-double-quoted -> double-quoted
+#
+# (at end of input)          EOL - note this is not represented within the
+#                              state loop, it's performed after the loop.
 # Note: Starting bash 5.3, you will be able to do read -E, which is like
 # read -e, but has history. However, bash 5.3 has not been released yet.
 while IFS=';' read -a linearr -e -p "$*> "; do
